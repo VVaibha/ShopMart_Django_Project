@@ -1,0 +1,14 @@
+{% extends 'store/base.html' %}
+{% load store_extras %}
+{% block title %}Order Confirmed — ShopMart{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <i class="bi bi-check-circle-fill text-success" style="font-size:4rem;"></i>
+    <h2 class="mt-3">Thank you, {{ order.full_name }}!</h2>
+    <p class="text-muted">Your order <strong>#{{ order.id }}</strong> has been placed successfully.</p>
+    <p>Payment method: <strong>{{ order.get_payment_method_display }}</strong></p>
+    <p>Total amount: <strong>{% price order.total_price %}</strong></p>
+    <a href="{% url 'home' %}" class="btn btn-dark mt-3">Continue Shopping</a>
+</div>
+{% endblock %}

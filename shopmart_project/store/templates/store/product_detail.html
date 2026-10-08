@@ -1,0 +1,103 @@
+{% extends 'store/base.html' %}
+{% load store_extras %}
+{% block title %}{{ product.name }} — ShopMart{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-5">
+        {% if product.image %}
+        <img src="{{ product.image.url }}" class="img-fluid rounded shadow-sm" alt="{{ product.name }}">
+        {% else %}
+        <div class="bg-light d-flex align-items-center justify-content-center rounded" style="height:350px;">
+            <i class="bi bi-image fs-1 text-muted"></i>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-md-7">
+        <h2>{{ product.name }}</h2>
+        <p class="text-muted">{{ product.category.name }}</p>
+        {% if product.average_rating %}
+        <p class="text-warning"><i class="bi bi-star-fill"></i> {{ product.average_rating }} / 5 ({{ reviews.count }} review{{ reviews.count|pluralize }})</p>
+        {% endif %}
+        <h3 class="text-danger">{% price product.price %}</h3>
+        <p>{{ product.description }}</p>
+
+        {% if product.in_stock %}
+        <p class="text-success"><i class="bi bi-check-circle"></i> In stock ({{ product.stock }} available)</p>
+        <form method="post" action="{% url 'add_to_cart' product.id %}" class="d-flex align-items-center gap-2 mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control" style="width:90px;">
+            <button type="submit" class="btn btn-dark"><i class="bi bi-cart-plus"></i> Add to Cart</button>
+        </form>
+        {% else %}
+        <p class="text-danger"><i class="bi bi-x-circle"></i> Out of stock</p>
+        {% endif %}
+    </div>
+</div>
+
+<hr class="my-5">
+
+<h4>Customer Reviews</h4>
+
+{% if user.is_authenticated and not user_has_reviewed %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title">Leave your feedback</h6>
+        <form method="post" action="{% url 'add_review' product.slug %}">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label class="form-label">Rating</label>
+                {{ review_form.rating }}
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Comment</label>
+                {{ review_form.comment }}
+            </div>
+            <button type="submit" class="btn btn-dark btn-sm">Submit Feedback</button>
+        </form>
+    </div>
+</div>
+{% elif not user.is_authenticated %}
+<p class="text-muted"><a href="{% url 'login' %}">Login</a> to leave feedback on this product.</p>
+{% else %}
+<p class="text-muted">You've already reviewed this product. Thanks for your feedback!</p>
+{% endif %}
+
+{% for review in reviews %}
+<div class="border-bottom py-3">
+    <strong>{{ review.user.username }}</strong>
+    <span class="text-warning ms-2">
+        {% for i in "12345" %}
+            {% if forloop.counter <= review.rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}
+        {% endfor %}
+    </span>
+    <span class="text-muted small ms-2">{{ review.created_at|date:"d M Y" }}</span>
+    <p class="mb-0 mt-1">{{ review.comment }}</p>
+</div>
+{% empty %}
+<p class="text-muted">No reviews yet. Be the first to share your feedback!</p>
+{% endfor %}
+
+{% if related_products %}
+<hr class="my-5">
+<h4>You may also like</h4>
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4">
+    {% for rp in related_products %}
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <a href="{{ rp.get_absolute_url }}">
+                {% if rp.image %}
+                <img src="{{ rp.image.url }}" class="card-img-top" style="height:150px;object-fit:cover;">
+                {% endif %}
+            </a>
+            <div class="card-body">
+                <h6><a href="{{ rp.get_absolute_url }}" class="text-decoration-none text-dark">{{ rp.name }}</a></h6>
+                <span>{% price rp.price %}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
