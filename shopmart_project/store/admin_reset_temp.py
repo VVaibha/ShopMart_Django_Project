@@ -16,7 +16,7 @@ def temporary_admin_reset(request):
     supplied_token = request.POST.get("token", "")
 
     if request.method == "GET":
-        return render(request, "admin_reset_temp.html")
+        return render(request, "store/admin_reset_temp.html")
 
     if not expected_token or not hmac.compare_digest(
         supplied_token, expected_token
@@ -52,3 +52,4 @@ def temporary_admin_reset(request):
     user.save()
 
     return HttpResponse("Admin credentials updated successfully.")
+
