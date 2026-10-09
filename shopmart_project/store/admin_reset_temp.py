@@ -12,11 +12,11 @@ from django.views.decorators.http import require_http_methods
 
 @require_http_methods(["GET", "POST"])
 def temporary_admin_reset(request):
-    expected_token = os.environ.get("ADMIN_RESET_TOKEN", "")
-    supplied_token = request.POST.get("token", "")
-
     if request.method == "GET":
         return render(request, "store/admin_reset_temp.html")
+
+    expected_token = os.environ.get("ADMIN_RESET_TOKEN", "")
+    supplied_token = request.POST.get("token", "")
 
     if not expected_token or not hmac.compare_digest(
         supplied_token, expected_token
@@ -24,22 +24,49 @@ def temporary_admin_reset(request):
         return HttpResponse("Unauthorized", status=403)
 
     User = get_user_model()
-    current_username = request.POST.get("current_username", "").strip()
     new_username = request.POST.get("new_username", "").strip()
     new_password = request.POST.get("new_password", "")
 
-    try:
-        user = User.objects.get(
-            username=current_username,
-            is_superuser=True,
-        )
-    except User.DoesNotExist:
-        return HttpResponse("Superuser not found.", status=404)
-
     if not new_username or not new_password:
-        return HttpResponse("Username and password are required.", status=400)
+        return HttpResponse(
+            "Username and password are required.", status=400
+        )
 
-    if User.objects.filter(username=new_username).exclude(pk=user.pk).exists():
+    admins = User.objects.filter(
+        is_superuser=True,
+        is_active=True,
+    )
+
+    if admins.count() == 0:
+        if User.objects.filter(username=new_username).exists():
+            return HttpResponse("Username already exists.", status=400)
+
+        try:
+            validate_password(new_password)
+        except ValidationError as exc:
+            return HttpResponse("; ".join(exc.messages), status=400)
+
+        User.objects.create_superuser(
+            username=new_username,
+            email="",
+            password=new_password,
+        )
+        return HttpResponse(
+            "First admin created successfully. Log in at /admin/."
+        )
+
+    if admins.count() > 1:
+        return HttpResponse(
+            "Multiple active superusers exist. Automatic reset stopped; "
+            "database admin identification is required.",
+            status=409,
+        )
+
+    user = admins.first()
+
+    if User.objects.filter(username=new_username).exclude(
+        pk=user.pk
+    ).exists():
         return HttpResponse("Username already exists.", status=400)
 
     try:
@@ -51,5 +78,6 @@ def temporary_admin_reset(request):
     user.set_password(new_password)
     user.save()
 
-    return HttpResponse("Admin credentials updated successfully.")
-
+    return HttpResponse(
+        "Admin credentials updated successfully. Log in at /admin/."
+    )
